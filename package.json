@@ -1,0 +1,30 @@
+{
+  "name": "vscode-oniguruma",
+  "version": "0.1.1",
+  "description": "access oniguruma packaged with vscode",
+  "main": "index.js",
+  "scripts": {
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lieene/vscode-oniguruma.git"
+  },
+  "keywords": [
+    "javascript",
+    "js",
+    "oniguruma",
+    "vscode",
+    "regexp"
+  ],
+  "author": "lieene",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/lieene/vscode-oniguruma/issues"
+  },
+  "homepage": "https://github.com/lieene/vscode-oniguruma#readme",
+  "devDependencies": {
+    "@types/vscode": "^1.39.0"
+  },
+  "dependencies": {}
+}
