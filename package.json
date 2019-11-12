@@ -1,7 +1,7 @@
 {
-  "name": "vscode-oniguruma",
+  "name": "@lieene/oniguruma-ext",
   "version": "1.0.0",
-  "description": "access oniguruma shiped with vscode",
+  "description": "oniguruma for node.js with group tree, group name, group match indicator, and utilize oniguruma binary lib shiped with vscode when used in vscode extension",
   "main": "out/index.js",
   "types": "out/index.d.ts",
   "scripts": {
@@ -34,7 +34,9 @@
   "homepage": "https://github.com/lieene/vscode-oniguruma#readme",
   "devDependencies": {
     "@types/jest": "^24.0.22",
+    "@types/vscode": "^1.40.0",
     "jest": "^24.9.0",
+    "oniguruma": "^7.2.0",
     "prettier": "^1.19.1",
     "ts-jest": "^24.1.0",
     "tslint": "^5.20.1",
@@ -43,7 +45,8 @@
   },
   "dependencies": {
     "@lieene/ts-utility": "^1.0.6",
-    "@types/node": "^12.12.7"
+    "@types/node": "^12.12.7",
+    "poly-tree": "^1.0.3"
   },
   "files": [
     "out/**/*"
