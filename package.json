@@ -1,21 +1,30 @@
 {
   "name": "vscode-oniguruma",
-  "version": "0.1.1",
-  "description": "access oniguruma packaged with vscode",
-  "main": "index.js",
+  "version": "1.0.0",
+  "description": "access oniguruma shiped with vscode",
+  "main": "out/index.js",
+  "types": "out/index.d.ts",
   "scripts": {
-    "test": "test"
+    "test": "jest --config jestconfig.json",
+    "build": "tsc",
+    "format": "prettier --write \"src/**/*.ts\" \"src/**/*.js\"",
+    "lint": "tslint -p tsconfig.json",
+    "prepare": "npm run build",
+    "prepublishOnly": "npm test && npm run lint",
+    "preversion": "npm run lint",
+    "version": "npm run format && git add -A src",
+    "postversion": "git push && git push --tags"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lieene/vscode-oniguruma.git"
   },
   "keywords": [
-    "javascript",
-    "js",
-    "oniguruma",
-    "vscode",
-    "regexp"
+    "typescript",
+    "tree",
+    "poly",
+    "morph",
+    "sequential"
   ],
   "author": "lieene",
   "license": "MIT",
@@ -24,7 +33,19 @@
   },
   "homepage": "https://github.com/lieene/vscode-oniguruma#readme",
   "devDependencies": {
-    "@types/vscode": "^1.39.0"
+    "@types/jest": "^24.0.22",
+    "jest": "^24.9.0",
+    "prettier": "^1.19.1",
+    "ts-jest": "^24.1.0",
+    "tslint": "^5.20.1",
+    "tslint-config-prettier": "^1.18.0",
+    "typescript": "^3.7.2"
   },
-  "dependencies": {}
+  "dependencies": {
+    "@lieene/ts-utility": "^1.0.6",
+    "@types/node": "^12.12.7"
+  },
+  "files": [
+    "out/**/*"
+  ]
 }

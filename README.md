@@ -1,3 +1,1 @@
-# vscode-oniguruma
-
-access oniguruma api from packaged with vscode
+# Polymorphic tree for typescript
