@@ -73,7 +73,7 @@ export class OnigScanner
     this.patterns = [];
     let pushable = this.patterns as Array<Pattern>;
     for (let i = 0, len = patterns.length; i < len; i++)
-    { pushable.push(OnigScanner.parseSource(patterns[i])); }
+    { pushable.push(Internal.parseSource(patterns[i])); }
   }
   readonly patterns: ReadonlyArray<Pattern>;
 
@@ -134,115 +134,6 @@ export class OnigScanner
     }
     return m;
   }
-
-  private static patterns = [
-    "(?<!\\\\)\\((?!\\?)",                         //0 index capture group begin
-    "(?<!\\\\)\\(\\?<([a-zA-Z_][a-zA-Z0-9_]*)>",   //1 named capture group begin
-    "(?<!\\\\)\\)",                                //2 group end
-    "(?<!\\\\)\\(\\?\\#(?m:.)*?\\)",               //3 comment group
-    "(?<!\\\\)\\(\\?[\\-imxWDSPy]+:",              //4 option group
-    "(?<!\\\\)\\(\\?[\\-imxWDSPy]+\\)",            //5 option switch
-    "(?<!\\\\)\\(\\?(:|=|!|<=|<!|>|{|~)",	       //6 none cap
-    "(?<!\\\\)\\(\\?(?=\\()",					   //7 Conditional
-  ];
-  private static patternsExt = [...OnigScanner.patterns, "(?<!\\\\)#.*"]; //8 lineEndComment
-
-  private static ops: Internal.OniBin | undefined = undefined;
-  private static get oniPatterScanner(): Internal.OniBin
-  { return OnigScanner.ops === undefined ? OnigScanner.ops = new (Internal.GetOni())(OnigScanner.patterns) : OnigScanner.ops; }
-
-  private static opsx: Internal.OniBin | undefined = undefined;
-  private static get oniPatterScannerExt(): Internal.OniBin
-  { return OnigScanner.opsx === undefined ? OnigScanner.opsx = new (Internal.GetOni())(OnigScanner.patternsExt) : OnigScanner.opsx; }
-
-  private static oop: Internal.OniBin | undefined = undefined;
-  //https://regex101.com/r/sASjOR/1
-  private static get oniOption(): Internal.OniBin
-  { return OnigScanner.oop === undefined ? OnigScanner.oop = new (Internal.GetOni())(["\\?(?:[imWDSPy]|(x))*-?(?:[imWDSPy]|(x))*"]) : OnigScanner.oop; }
-
-  //const 
-  private static indexCapGroup = 0;
-  private static namedCapGroup = 1;
-  private static groupEnd = 2;
-  private static commentGroup = 3;
-  private static optionGroup = 4;
-  private static optionSwitch = 5;
-  private static noneCap = 6;
-  private static ConditionalGroup = 7;
-  private static lineEndComment = 8;
-
-  private static parseSource(source: string): Pattern
-  {
-    let groupTree: Tree.MorphTreeX<nt.Named, { source: string }> = Tree<nt.Named>().morph({ source }) as any;
-    let groupNode = groupTree.root;
-    let cap: boolean = true;
-    let ext: boolean = false;
-    let capStack: Array<boolean> = [];
-    let extStack: Array<boolean> = [];
-    let position = 0;
-    let match: Match | null = OnigScanner.oniPatterScanner._findNextMatchSync(source, position);
-    while (match !== null)
-    {
-      let captures = match.captureIndices;
-      let fullMatch = captures[0];
-      let g1 = captures[1];
-      let index = match.index;
-      position = fullMatch.end;
-      switch (index)
-      {
-        case OnigScanner.indexCapGroup:
-          cap = true;
-          capStack.push(cap);
-          groupNode = groupNode.push(nt.named(undefined));
-          break;
-        case OnigScanner.namedCapGroup:
-          cap = true;
-          capStack.push(cap);
-          groupNode = groupNode.push(nt.named(source.slice(g1.start, g1.end)));
-          break;
-        case OnigScanner.groupEnd:
-          cap = capStack.pop()!;
-          if (cap) { groupNode = groupNode.parent!; }
-          break;
-        case OnigScanner.optionSwitch:
-        case OnigScanner.optionGroup:
-          let matchOp = OnigScanner.oniOption._findNextMatchSync(source.slice(fullMatch.start, fullMatch.end), 0);
-          if (matchOp !== null)
-          {
-            let newExt: boolean = ext;
-            if (matchOp.captureIndices[1].length === 1) { newExt = true; }
-            if (matchOp.captureIndices[2].length === 1) { newExt = false; }
-            if (index === OnigScanner.optionGroup)
-            {
-              extStack.push(ext);
-              ext = newExt;
-              cap = false;
-              capStack.push(cap);
-            }
-            else if (index === OnigScanner.optionSwitch)
-            { ext = newExt; }
-          }
-          break;
-        case OnigScanner.noneCap:
-          cap = false;
-          capStack.push(cap);
-          break;
-        case OnigScanner.ConditionalGroup:
-          cap = false;
-          capStack.push(cap);
-          break;
-        case OnigScanner.commentGroup:
-        case OnigScanner.lineEndComment:
-          break;
-        default:
-          break;
-      }
-      if (ext) { match = OnigScanner.oniPatterScannerExt._findNextMatchSync(source, position); }
-      else { match = OnigScanner.oniPatterScanner._findNextMatchSync(source, position); }
-    }
-    return groupTree as any;
-  }
-
 }
 
 namespace Internal
@@ -285,5 +176,114 @@ namespace Internal
       else { return gn.length > 0 || (g0.length === 0 && gn.length === 0); }//do not allow leading anchor
     }
     else { return true; }
+  }
+
+
+
+  const patterns = [
+    "(?<!\\\\)\\((?!\\?)",                         //0 index capture group begin
+    "(?<!\\\\)\\(\\?<([a-zA-Z_][a-zA-Z0-9_]*)>",   //1 named capture group begin
+    "(?<!\\\\)\\)",                                //2 group end
+    "(?<!\\\\)\\(\\?\\#(?m:.)*?\\)",               //3 comment group
+    "(?<!\\\\)\\(\\?[\\-imxWDSPy]+:",              //4 option group
+    "(?<!\\\\)\\(\\?[\\-imxWDSPy]+\\)",            //5 option switch
+    "(?<!\\\\)\\(\\?(:|=|!|<=|<!|>|{|~)",	       //6 none cap
+    "(?<!\\\\)\\(\\?(?=\\()",					   //7 Conditional
+  ];
+  const patternsExt = [...patterns, "(?<!\\\\)#.*"]; //8 lineEndComment
+
+  var ops: Internal.OniBin | undefined = undefined;
+  function oniPatterScanner(): Internal.OniBin { return ops === undefined ? ops = new (Internal.GetOni())(patterns) : ops; }
+
+  let opsx: Internal.OniBin | undefined = undefined;
+  function oniPatterScannerExt(): Internal.OniBin
+  { return opsx === undefined ? opsx = new (Internal.GetOni())(patternsExt) : opsx; }
+
+  let oop: Internal.OniBin | undefined = undefined;
+  //https://regex101.com/r/sASjOR/1
+  function oniOption(): Internal.OniBin
+  { return oop === undefined ? oop = new (Internal.GetOni())(["\\?(?:[imWDSPy]|(x))*-?(?:[imWDSPy]|(x))*"]) : oop; }
+
+  //const 
+  let indexCapGroup = 0;
+  let namedCapGroup = 1;
+  let groupEnd = 2;
+  let commentGroup = 3;
+  let optionGroup = 4;
+  let optionSwitch = 5;
+  let noneCap = 6;
+  let ConditionalGroup = 7;
+  let lineEndComment = 8;
+
+  export function parseSource(source: string): Pattern
+  {
+    let groupTree: Tree.MorphTreeX<nt.Named, { source: string }> = Tree<nt.Named>().morph({ source }) as any;
+    let groupNode = groupTree.root;
+    let cap: boolean = true;
+    let ext: boolean = false;
+    let capStack: Array<boolean> = [];
+    let extStack: Array<boolean> = [];
+    let position = 0;
+    let match: Match | null = oniPatterScanner()._findNextMatchSync(source, position);
+    while (match !== null)
+    {
+      let captures = match.captureIndices;
+      let fullMatch = captures[0];
+      let g1 = captures[1];
+      let index = match.index;
+      position = fullMatch.end;
+      switch (index)
+      {
+        case indexCapGroup:
+          cap = true;
+          capStack.push(cap);
+          groupNode = groupNode.push(nt.named(undefined));
+          break;
+        case namedCapGroup:
+          cap = true;
+          capStack.push(cap);
+          groupNode = groupNode.push(nt.named(source.slice(g1.start, g1.end)));
+          break;
+        case groupEnd:
+          cap = capStack.pop()!;
+          if (cap) { groupNode = groupNode.parent!; }
+          break;
+        case optionSwitch:
+        case optionGroup:
+          let matchOp = oniOption()._findNextMatchSync(source.slice(fullMatch.start, fullMatch.end), 0);
+          if (matchOp !== null)
+          {
+            let newExt: boolean = ext;
+            if (matchOp.captureIndices[1].length === 1) { newExt = true; }
+            if (matchOp.captureIndices[2].length === 1) { newExt = false; }
+            if (index === optionGroup)
+            {
+              extStack.push(ext);
+              ext = newExt;
+              cap = false;
+              capStack.push(cap);
+            }
+            else if (index === optionSwitch)
+            { ext = newExt; }
+          }
+          break;
+        case noneCap:
+          cap = false;
+          capStack.push(cap);
+          break;
+        case ConditionalGroup:
+          cap = false;
+          capStack.push(cap);
+          break;
+        case commentGroup:
+        case lineEndComment:
+          break;
+        default:
+          break;
+      }
+      if (ext) { match = oniPatterScannerExt()._findNextMatchSync(source, position); }
+      else { match = oniPatterScanner()._findNextMatchSync(source, position); }
+    }
+    return groupTree as any;
   }
 }
