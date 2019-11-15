@@ -1,6 +1,6 @@
 {
   "name": "oniguruma-ext",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "oniguruma for node.js with group tree, group name, group match indicator, and utilize oniguruma binary lib shiped with vscode when used in vscode extension",
   "main": "out/index.js",
   "types": "out/index.d.ts",
