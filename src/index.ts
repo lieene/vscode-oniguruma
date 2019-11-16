@@ -11,6 +11,8 @@ import '@lieene/ts-utility';
 import * as L from '@lieene/ts-utility';
 import { Tree, NamedTree as nt, NamedTree } from 'poly-tree';
 import { promisify } from 'util';
+import { objectExpression } from '@babel/types';
+import { type } from 'os';
 
 export interface VscodeLike
 {
@@ -275,6 +277,17 @@ export interface Match
 
 export type Pattern = Tree.SimpleMorphTree<nt.Named, { readonly source: string }>;
 
+export type MatchTree = Tree.MorphTreeX<L.Range & NamedTree.Named, { source: string }>;
+export type MatchNode = Tree.MorphNodeNX<L.Range & NamedTree.Named>;
+// let a:{i:number, readonly j:number;}={i:1} as any;
+// function getJ(this:{i:number}){return this.i;}
+// Object.defineProperty(a,'j',{get:getJ});
+// let b:typeof a = {} as  any;
+// Object.assign(b,a);
+// b.i=100;
+// console.log(b.j);
+
+
 /**
  * An object representing one OR MORE regex patterns, which can be used to
  * interrogate strings for matches against any of the supplied patterns.
@@ -368,23 +381,28 @@ export class OnigScanner
     return am;
   }
 
-  toMatchTree(...matches: Match[]): Tree.MorphTreeN<NamedTree.Named & L.Range>
+  //BuildMatchTree<T extends object>(builder: (g: Tree.MorphNodeN<NamedTree.Named>, n: Tree.MorphNodeN<T>) => T, ...matches: Match[]): Tree.MorphTreeN<T>;
+  buildMatchTree(string: string): MatchTree|null
   {
-    let mt = Tree<NamedTree.Named>();
-    for (let i = 0, len = matches.length; i < len; i++)
+    let m=this.internalOni._findNextMatchSync(string, 0);
+    if(m===null){return null;}
+    
+    let mt: MatchTree = this.patterns[m.index] as any;
+    mt.source = string;
+    let pos = 0;
+    while (m = this.internalOni._findNextMatchSync(string, pos))
     {
-      let m = matches[i];
-      let cap = m.captureIndices;
-      let gt: Tree.MorphTreeNX<NamedTree.Named> = m.groupInfo as any;
-      mt.merg(gt.clone(true, o => cap[o.index].isMatched, (n, o) => 
+      let gpt: Tree.MorphTreeNX<NamedTree.Named> = this.patterns[m.index] as any;
+      console.log(gpt);
+      let caps = m.captureIndices;
+      mt.merg(gpt.clone(true, n => caps[n.index].isMatched, (n, o) =>
       {
-        n.poly(NamedTree.named(o.name));
-        let c = cap[o.index];
-        n.poly(L.StartLen(c.start,c.length));
-      }
-      ), false);
+        let c = caps[o.index];
+        Object.assign(n, L.StartLen(c.start,c.length),NamedTree.named(o.name));
+      }), false);
+      pos = caps[0].end;
     }
-    return mt as any;
+    return mt;
   }
 
 

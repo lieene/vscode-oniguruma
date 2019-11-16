@@ -6,11 +6,12 @@ test("oniguruma tree test", () =>
 {
     let oni: Oni = new Oni('(?x)(?<first>some)\\s+(?:(function)|(not)) #sssss');
     let ma = oni.findNextMatchSync(text, 0)!;
-    console.log(ma);
+    //console.log(ma);
     let mala = oni.findAllMatchSync(text);
-    console.log(mala);
-    let mt = oni.toMatchTree(...mala);
+    //console.log(mala);
+    let mt = oni.buildMatchTree(`some function some not and some other has some function`);
     console.log(mt.info(true));
+
     //Oni.Test();
     //console.log((ma.groupInfo as any as Tree.CTree).info(true));
     //console.log(ma.groupInfo.nodes.join("\r\n"));
