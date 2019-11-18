@@ -44,9 +44,8 @@
     "typescript": "^3.7.2"
   },
   "dependencies": {
-    "@lieene/ts-utility": "^1.0.14",
     "@types/node": "^12.12.7",
-    "poly-tree": "^1.2.0"
+    "poly-tree": "^1.2.1"
   },
   "files": [
     "out/**/*"
