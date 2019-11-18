@@ -7,12 +7,11 @@
 // Last Modified: Sat Nov 16 2019                                                  //
 // Modified By: Lieene Guo                                                         //
 
-import '@lieene/ts-utility';
+// import '@lieene/ts-utility';
+import { Tree, Name } from 'poly-tree';
 import * as L from '@lieene/ts-utility';
-import { Tree, NamedTree as nt, NamedTree } from 'poly-tree';
 import { promisify } from 'util';
-import { objectExpression } from '@babel/types';
-import { type } from 'os';
+
 
 export interface VscodeLike
 {
@@ -145,7 +144,7 @@ namespace Internal
 
   export function parseSource(source: string): Pattern
   {
-    let groupTree: Tree.MorphTreeX<nt.Named, { source: string }> = Tree<nt.Named>().morph({ source }) as any;
+    let groupTree: Tree.MorphTreeX<Name, { source: string }> = Tree<Name, { source: string }>({ source: source });
     let groupNode = groupTree.root;
     let cap: boolean = true;
     let ext: boolean = false;
@@ -165,12 +164,12 @@ namespace Internal
         case indexCapGroup:
           cap = true;
           capStack.push(cap);
-          groupNode = groupNode.push(nt.named(undefined));
+          groupNode = groupNode.push(Name(undefined));
           break;
         case namedCapGroup:
           cap = true;
           capStack.push(cap);
-          groupNode = groupNode.push(nt.named(source.slice(g1.start, g1.end)));
+          groupNode = groupNode.push(Name(source.slice(g1.start, g1.end)));
           break;
         case groupEnd:
           cap = capStack.pop()!;
@@ -227,7 +226,7 @@ namespace Internal
         match = oniPatterScanner()._findNextMatchSync(source, position);
       }
     }
-    return groupTree as any;
+    return Tree.Simplify(groupTree);
   }
 }
 
@@ -275,18 +274,24 @@ export interface Match
   groupInfo: Pattern;
 }
 
-export type Pattern = Tree.SimpleMorphTree<nt.Named, { readonly source: string }>;
+export type Pattern = Tree.SimpleMorphTree<Name, { readonly source: string }>;
+export type MatchTree = Tree.MorphTreeX<MatchNodeExt, { source: string }>;
+export type MatchNode = Tree.MorphNodeX<MatchNodeExt, { source: string }>;
 
-export type MatchTree = Tree.MorphTreeX<L.Range & NamedTree.Named, { source: string }>;
-export type MatchNode = Tree.MorphNodeNX<L.Range & NamedTree.Named>;
-// let a:{i:number, readonly j:number;}={i:1} as any;
-// function getJ(this:{i:number}){return this.i;}
-// Object.defineProperty(a,'j',{get:getJ});
-// let b:typeof a = {} as  any;
-// Object.assign(b,a);
-// b.i=100;
-// console.log(b.j);
+type MatchNodeExt = { range: L.Range } & Name;
+function MatchNodeExt(range: L.Range, name?: string): MatchNodeExt
+{
+  let x = Object.assign(Name(name), { range: range });
+  x.toString = LogMatchString;
+  return x;
+}
 
+function LogMatchString(this: MatchNode): string
+{
+  let slice = this.tree.source.slice(this.range.start, this.range.end);
+  let rgs = this.range.toString();
+  return `${this.name === undefined ? '' : this.name + "|"}${rgs}:${slice}`;
+}
 
 /**
  * An object representing one OR MORE regex patterns, which can be used to
@@ -308,8 +313,11 @@ export class OnigScanner
       pushable.push(Internal.parseSource(patterns[i]));
     }
   }
+
   readonly patterns: ReadonlyArray<Pattern>;
+
   static InitFrom = Internal.InitFrom;
+
   /**
    * Find the next match from the beginning of a string
    * @param string The string to search
@@ -381,25 +389,24 @@ export class OnigScanner
     return am;
   }
 
-  //BuildMatchTree<T extends object>(builder: (g: Tree.MorphNodeN<NamedTree.Named>, n: Tree.MorphNodeN<T>) => T, ...matches: Match[]): Tree.MorphTreeN<T>;
-  buildMatchTree(string: string): MatchTree|null
+  //BuildMatchTree<T extends object>(builder: (g: Tree.MorphNodeN<Named>, n: Tree.MorphNodeN<T>) => T, ...matches: Match[]): Tree.MorphTreeN<T>;
+  buildMatchTree(string: string): MatchTree | null
   {
-    let m=this.internalOni._findNextMatchSync(string, 0);
-    if(m===null){return null;}
-    
-    let mt: MatchTree = this.patterns[m.index] as any;
+    let info = { source: string, toString: () => { return string; } };
+    let mt: MatchTree = Tree<MatchNodeExt, { source: string }>({ source: string });
+    mt.root.poly(info);
     mt.source = string;
-    let pos = 0;
-    while (m = this.internalOni._findNextMatchSync(string, pos))
+    let m, pos = 0;
+    while (m = this.findNextMatchSync(string, pos))
     {
-      let gpt: Tree.MorphTreeNX<NamedTree.Named> = this.patterns[m.index] as any;
-      console.log(gpt);
+      let gpt: Tree.MorphTreeNX<Name> = this.patterns[m.index] as any;
       let caps = m.captureIndices;
-      mt.merg(gpt.clone(true, n => caps[n.index].isMatched, (n, o) =>
+      let sub = gpt.clone(true, n => caps[n.index].isMatched, (n, o) =>
       {
         let c = caps[o.index];
-        Object.assign(n, L.StartLen(c.start,c.length),NamedTree.named(o.name));
-      }), false);
+        n.poly(MatchNodeExt(L.StartLen(c.start, c.length), o.name));
+      });
+      mt.merg(sub, false);
       pos = caps[0].end;
     }
     return mt;
