@@ -22,9 +22,8 @@
   "keywords": [
     "typescript",
     "tree",
-    "poly",
-    "morph",
-    "sequential"
+    "oniguruma",
+    "regex",
   ],
   "author": "lieene",
   "license": "MIT",
