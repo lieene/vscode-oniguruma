@@ -23,7 +23,7 @@
     "typescript",
     "tree",
     "oniguruma",
-    "regex",
+    "regex"
   ],
   "author": "lieene",
   "license": "MIT",
