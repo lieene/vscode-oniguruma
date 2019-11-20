@@ -25,7 +25,10 @@
     "typescript",
     "tree",
     "oniguruma",
-    "regex"
+    "regex",
+    "vscode",
+    "node.js",
+    "node native"
   ],
   "author": "lieene",
   "license": "MIT",
