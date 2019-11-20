@@ -4,7 +4,7 @@
 // MIT License                                                                     //
 // Copyright (c) 2019 Lieene@ShadeRealm                                            //
 // Created Date: Thu Nov 14 2019                                                   //
-// Last Modified: Sat Nov 16 2019                                                  //
+// Last Modified: Wed Nov 20 2019                                                  //
 // Modified By: Lieene Guo                                                         //
 
 // import '@lieene/ts-utility';
@@ -359,7 +359,7 @@ export class OnigScanner {
         n => caps[n.index].isMatched,
         (n, o) => {
           let c = caps[o.index];
-          n.poly(MatchNodeExt(L.StartLen(c.start, c.length), o.name));
+          n.poly(MatchNodeExt(new L.Range(c.start, c.length), o.name));
         },
       );
       mt.merg(sub, false);
