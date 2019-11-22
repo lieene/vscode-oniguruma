@@ -4,7 +4,7 @@
 // MIT License                                                                     //
 // Copyright (c) 2019 Lieene@ShadeRealm                                            //
 // Created Date: Thu Nov 14 2019                                                   //
-// Last Modified: Wed Nov 20 2019                                                  //
+// Last Modified: Fri Nov 22 2019                                                  //
 // Modified By: Lieene Guo                                                         //
 
 // import '@lieene/ts-utility';
@@ -235,7 +235,7 @@ export interface Match {
   groupInfo: Pattern;
 }
 
-export type Pattern = Tree.SimpleMorphTree<Name, { readonly source: string }>;
+export type Pattern = Tree.MorphTreeS<Name, { readonly source: string }>;
 export type MatchTree = Tree.MorphTreeX<MatchNodeExt, { source: string }>;
 export type MatchNode = Tree.MorphNodeX<MatchNodeExt, { source: string }>;
 

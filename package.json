@@ -14,7 +14,7 @@
     "preversion": "npm run lint",
     "version": "npm run format && git add -A src",
     "postversion": "git push && git push --tags",
-    "update": "npm i poly-tree",
+    "update": "npm i poly-tree && npm run test",
     "fastpatch": "git add . && git commit && npm version patch && npm publish"
   },
   "repository": {
@@ -49,7 +49,7 @@
     "typescript": "^3.7.2"
   },
   "dependencies": {
-    "poly-tree": "^1.4.3"
+    "poly-tree": "^1.4.4"
   },
   "files": [
     "out/**/*"
