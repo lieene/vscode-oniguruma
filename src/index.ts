@@ -4,7 +4,7 @@
 // MIT License                                                                     //
 // Copyright (c) 2019 Lieene@ShadeRealm                                            //
 // Created Date: Thu Nov 14 2019                                                   //
-// Last Modified: Mon Nov 25 2019                                                  //
+// Last Modified: Tue Nov 26 2019                                                  //
 // Modified By: Lieene Guo                                                         //
 
 // import '@lieene/ts-utility';
@@ -111,8 +111,10 @@ namespace Internal
     '(?<!\\\\)\\(\\?[\\-imxWDSPy]+\\)', //5 option switch
     '(?<!\\\\)\\(\\?(:|=|!|<=|<!|>|{|~)', //6 none cap
     '(?<!\\\\)\\(\\?(?=\\()', //7 Conditional
+    '(?<!\\\\)\\[', //8 Charactor set begin
+    '(?<!\\\\)\\]', //9 Charactor set end
   ];
-  const patternsExt = [...patterns, '(?<!\\\\)#.*']; //8 lineEndComment
+  const patternsExt = [...patterns, '(?<!\\\\)#.*']; //10 lineEndComment
 
   var ops: Internal.OniBin | undefined = undefined;
   function oniPatterScanner(): Internal.OniBin
@@ -136,7 +138,9 @@ namespace Internal
   let optionSwitch = 5;
   let noneCap = 6;
   let ConditionalGroup = 7;
-  let lineEndComment = 8;
+  let CharactorSetBegin = 8;
+  let CharactorSetEnd = 9;
+  let lineEndComment = 10;
 
   export function parseSource(source: string): Pattern
   {
@@ -148,6 +152,7 @@ namespace Internal
     let extStack: Array<boolean> = [];
     let position = 0;
     let match: Match | null = oniPatterScanner()._findNextMatchSync(source, position);
+    let isCharSet: boolean = false;
     while (match !== null)
     {
       let captures = match.captureIndices;
@@ -158,39 +163,53 @@ namespace Internal
       switch (index)
       {
         case indexCapGroup:
-          cap = true;
-          capStack.push(cap);
-          groupNode = groupNode.push(Name(undefined));
+          if (!isCharSet)
+          {
+            cap = true;
+            capStack.push(cap);
+            groupNode = groupNode.push(Name(undefined));
+          }
           break;
         case namedCapGroup:
-          cap = true;
-          capStack.push(cap);
-          groupNode = groupNode.push(Name(source.slice(g1.start, g1.end)));
+          if (!isCharSet)
+          {
+            cap = true;
+            capStack.push(cap);
+            groupNode = groupNode.push(Name(source.slice(g1.start, g1.end)));
+          }
           break;
         case groupEnd:
-          cap = capStack.pop()!;
-          if (cap) { groupNode = groupNode.parent!; }
+          if (!isCharSet)
+          {
+            cap = capStack.pop()!;
+            if (cap) { groupNode = groupNode.parent!; }
+          }
           break;
         case optionSwitch:
         case optionGroup:
-          let matchOp = oniOption()._findNextMatchSync(source.slice(fullMatch.start, fullMatch.end), 0);
-          if (matchOp !== null)
+          if (!isCharSet)
           {
-            let newExt: boolean = ext;
-            if (matchOp.captureIndices[1].length === 1) { newExt = true; }
-            if (matchOp.captureIndices[2].length === 1) { newExt = false; }
-            if (index === optionGroup)
+            let matchOp = oniOption()._findNextMatchSync(source.slice(fullMatch.start, fullMatch.end), 0);
+            if (matchOp !== null)
             {
-              extStack.push(ext);
-              ext = newExt;
-              cap = false;
-              capStack.push(cap);
+              let newExt: boolean = ext;
+              if (matchOp.captureIndices[1].length === 1) { newExt = true; }
+              if (matchOp.captureIndices[2].length === 1) { newExt = false; }
+              if (index === optionGroup)
+              {
+                extStack.push(ext);
+                ext = newExt;
+                cap = false;
+                capStack.push(cap);
+              }
+              else { ext = newExt; }//index === optionSwitch
             }
-            else { ext = newExt; }//index === optionSwitch
           }
           break;
-        case noneCap: cap = false; capStack.push(cap); break;
-        case ConditionalGroup: cap = false; capStack.push(cap); break;
+        case noneCap: if (!isCharSet) { cap = false; capStack.push(cap); } break;
+        case CharactorSetBegin: isCharSet = true; break;
+        case CharactorSetEnd: isCharSet = false; break;
+        case ConditionalGroup: if (!isCharSet) { cap = false; capStack.push(cap); } break;
         case commentGroup:
         case lineEndComment: break;
         default: break;
@@ -201,6 +220,35 @@ namespace Internal
     return Tree.Simplify(groupTree);
   }
 }
+
+export function $Anchor(string: string): string;
+export function $Anchor(string: OniStr): OniStr;
+export function $Anchor(string: string | OniStr): string | OniStr
+{
+  if (L.IsString(string))
+  { return "$" + string; }
+  else { return OniStr("$" + string.content); }
+}
+
+export function $OniScaner(...srcs: OnigScanner[]): OnigScanner[];
+export function $OniScaner(...srcs: string[]): OnigScanner;
+export function $OniScaner(...srcs: (string | OnigScanner)[]): OnigScanner | OnigScanner[]
+{
+  if (L.IsArrayOf<string>(srcs, L.IsString))
+  { return new OnigScanner(...srcs.map(s => anchorFix(s))); }
+  else
+  { return (srcs as OnigScanner[]).map(o => new OnigScanner(...o.patterns.map(s => anchorFix(s.source)))); }
+}
+
+function anchorFix(src: string): string
+{
+  //https://regex101.com/r/U3JYC9/2
+  let charSetOrStartAnchor = /(?<!\\)(?:(\[)|([\^]))|(?<=\\)(?:(A))/g;
+  let charSeEnd = /(?<!\\)(?:])/g;
+  let isCharSet = false;
+  src.replace()
+}
+
 
 export type Callback<T> = (error: Error, match: T) => void;
 
@@ -283,6 +331,9 @@ export class OnigScanner
     for (let i = 0, len = patterns.length; i < len; i++)
     { pushable.push(Internal.parseSource(patterns[i])); }
   }
+
+  static escapeRegExpCharacters(value: string): string
+  { return value.replace(/[\-\\\{\}\*\+\?\|\^\$\.\,\[\]\(\)\#\s]/g, '\\$&'); }
 
   toString(): string
   { return this.patterns.reduce((p, s) => p.length === 0 ? s.source : `${p}\n${s.source}`, ''); }
@@ -387,6 +438,38 @@ export class OnigScanner
    */
   testSync(string: string | OniStr): boolean
   { return this.internalOni._findNextMatchSync(string, 0) === null; }
+
+  replace(string: string, count: number | "all", ...replacements: { key: string | number, rep: string }[]): void
+  {
+
+  }
+
+  replaceSync(string: string | OniStr, count: number | "all", ...replacements: { key: string | number, rep: string }[]): void
+  {
+
+    let m, pos = 0;
+    let am: Match[] = [];
+    if (count === "all") { count = -1; }
+    else { count = Math.max(1, count) >>> 0; }
+    while (count !== 0 && (m = this.findNextMatchSync(string, pos)))
+    {
+      am.push(m); pos = m.captureIndices[0].end;
+      count--;
+    }
+    let edits: { range: L.Range, replace: string }[] = [];
+    am.reduce((e, m) =>
+    {
+      replacements.forEach(r =>
+      {
+        if (L.IsNumber(r.key))
+        {
+          let c = m.captureIndices[r.key];
+          if (c) { e.pushOrdered({ range: new L.Range(c.start, c.length), replace: r.rep }, (l, r) => r.range.start - l.range.start); }
+        }
+      });
+      return e;
+    }, edits);
+  }
 
   private internalOni: Internal.OniBin;
   private filterMatch(string: string, m: Match | null): Match | null
