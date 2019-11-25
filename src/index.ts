@@ -285,9 +285,7 @@ export class OnigScanner
   }
 
   toString(): string
-  {
-    
-  }
+  { return this.patterns.reduce((p, s) => p.length === 0 ? s.source : `${p}\n${s.source}`, ''); }
 
   readonly patterns: ReadonlyArray<Pattern>;
   static InitFrom = Internal.InitFrom;
