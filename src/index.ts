@@ -28,7 +28,7 @@ namespace Internal
   var binStrCtor: OniStrCtor = L.Uny;
 
   const pathInVsRoot = '/node_modules.asar.unpacked/oniguruma/build/Release/onig_scanner.node';
-  const PathInPackage = `../../node_modules/oniguruma/build/Release/onig_scanner.node`;
+  const PathInPackage = `../../oniguruma/build/Release/onig_scanner.node`;
   const localPath = `../node_modules/oniguruma/build/Release/onig_scanner.node`;
   /**
    * use vscode built-in oniguruma node binary
