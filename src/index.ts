@@ -4,7 +4,7 @@
 // MIT License                                                                     //
 // Copyright (c) 2019 Lieene@ShadeRealm                                            //
 // Created Date: Thu Nov 14 2019                                                   //
-// Last Modified: Fri Nov 22 2019                                                  //
+// Last Modified: Mon Nov 25 2019                                                  //
 // Modified By: Lieene Guo                                                         //
 
 // import '@lieene/ts-utility';
@@ -23,36 +23,72 @@ namespace Internal
   }
 
   interface OniBinCtor { new(patterns: string[]): OniBin; }
+  interface OniStrCtor { new(string: string): OniStr; }
   var binCtor: OniBinCtor = L.Uny;
+  var binStrCtor: OniStrCtor = L.Uny;
 
   const pathInVsRoot = '/node_modules.asar.unpacked/oniguruma/build/Release/onig_scanner.node';
   const PathInPackage = `../../node_modules/oniguruma/build/Release/onig_scanner.node`;
   const localPath = `../node_modules/oniguruma/build/Release/onig_scanner.node`;
-
+  /**
+   * use vscode built-in oniguruma node binary
+   * @param vscode pass vscode object when used as vscode extension
+   */
   export function InitFrom(vscode: VscodeLike): void;
+  /**
+   * use custom oniguruma node binary
+   * @param fullpath path to oniguruma node binary
+   */
   export function InitFrom(fullpath: string): void;
-  export function InitFrom(from: VscodeLike | string): void
+  /**
+   * use custom oniguruma node binary from atom npm package
+   * @param defaultPath path of oniguruma node binary as npm package
+   */
+  export function InitFrom(defaultPath: `../../node_modules/oniguruma/build/Release/onig_scanner.node`): void;
+  export function InitFrom(from?: VscodeLike | string): void
   {
     try
     {
-      if (L.IsString(from)) { binCtor = require(from).OnigScanner; }
-      else { binCtor = require(from.env.appRoot + pathInVsRoot).OnigScanner; }
+      if (L.IsString(from)) 
+      {
+        let bin = require(from);
+        binCtor = bin.OnigScanner;
+        binStrCtor = bin.OnigString;
+      }
+      else if (from)
+      {
+        let bin = require(from.env.appRoot + pathInVsRoot);
+        binCtor = bin.OnigScanner;
+        binStrCtor = bin.OnigString;
+      }
     }
     catch (e) { GetOni(); }
   }
 
-  export function GetOni(): OniBinCtor
+  export function GetOni(op?: "Scaner"): OniBinCtor;
+  export function GetOni(op: "String"): OniStrCtor;
+  export function GetOni(op?: "String" | "Scaner"): OniBinCtor | OniStrCtor
   {
     if (binCtor === undefined)
     {
-      try { binCtor = require(PathInPackage).OnigScanner; }
+      try
+      {
+        let bin = require(PathInPackage);
+        binCtor = bin.OnigScanner;
+        binStrCtor = bin.OnigString;
+      }
       catch (e)
       {
-        try { binCtor = require(localPath).OnigScanner; }
+        try
+        {
+          let bin = require(localPath);
+          binCtor = bin.OnigScanner;
+          binStrCtor = bin.OnigString;
+        }
         catch (e) { throw new Error('Oniguruma binary node file not found. try use OnigScanner.InitFrom ahead.'); }
       }
     }
-    return binCtor;
+    return op === "String" ? binStrCtor : binCtor;
   }
   export function IsGroupFound(g0: GroupCapture, gn: GroupCapture): boolean
   {
@@ -364,4 +400,18 @@ export class OnigScanner
     }
     return m;
   }
+}
+
+/**
+ * Wrap a string primitive in a new OnigString object
+ * @param string The string primitive to be wrapped
+ */
+export function OniStr(string: string): OniStr
+{
+  return new (Internal.GetOni("String"))(string);
+}
+export interface OniStr
+{
+  /** The string primitive wrapped by the object */
+  readonly content: string;
 }

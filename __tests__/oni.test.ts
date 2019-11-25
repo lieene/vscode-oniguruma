@@ -1,4 +1,4 @@
-import { OnigScanner as Oni } from "../src";
+import { OnigScanner as Oni ,OniStr as str} from "../src";
 
 const text = 'some function with T1 T2 and (T3) can return value v1 v2 and v3.\r\nbut not with some other function and so.';
 test("oniguruma tree test", () =>
@@ -10,6 +10,8 @@ test("oniguruma tree test", () =>
     //console.log(mala);
     let mt = oni.buildMatchTree(`some function some not and some other has some function`)!;
     console.log(mt.info(false));
+    let os=str("some onigstring");
+    console.log(os.content);
 
     //Oni.Test();
     //console.log((ma.groupInfo as any as Tree.CTree).info(true));
