@@ -284,6 +284,11 @@ export class OnigScanner
     { pushable.push(Internal.parseSource(patterns[i])); }
   }
 
+  toString(): string
+  {
+    
+  }
+
   readonly patterns: ReadonlyArray<Pattern>;
   static InitFrom = Internal.InitFrom;
 
