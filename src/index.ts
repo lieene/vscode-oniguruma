@@ -408,10 +408,13 @@ export class OnigScanner
  */
 export function OniStr(string: string): OniStr
 {
-  return new (Internal.GetOni("String"))(string);
+  let str = new (Internal.GetOni("String"))(string);
+  str.toString = function (this: OniStr): string { return this.content; };
+  return str;
 }
 export interface OniStr
 {
   /** The string primitive wrapped by the object */
   readonly content: string;
+  toString(): string;
 }
