@@ -18,7 +18,7 @@ namespace Internal
 {
   export interface OniBin
   {
-    _findNextMatchSync(string: string, startPosition: number): Match | null;
+    _findNextMatchSync(string: string | OniStr, startPosition: number): Match | null;
     _findNextMatch(string: string, startPosition: number, callBack: (error: any, match: Match | null) => void): void;
   }
 
@@ -302,10 +302,12 @@ export class OnigScanner
    * @param startPosition The optional position to start at, defaults to 0
    * @return An object containing details about the match, or null if no match
    */
-  findNextMatchSync(string: string, startPosition?: number): Match | null
+  findNextMatchSync(string: string | OniStr, startPosition?: number): Match | null
   {
+    let oniStr: OniStr;
+    [oniStr, string] = L.IsString(string) ? [OniStr(string), string] : [string, string.content];
     if (startPosition === undefined) { startPosition = 0; }
-    return this.filterMatch(string, this.internalOni._findNextMatchSync(string, startPosition));
+    return this.filterMatch(string, this.internalOni._findNextMatchSync(oniStr, startPosition));
   }
 
   async forAllMatch(string: string, onMatch: (m: Match) => void): Promise<void>
@@ -331,7 +333,7 @@ export class OnigScanner
     return am;
   }
 
-  findAllMatchSync(string: string): Match[]
+  findAllMatchSync(string: string | OniStr): Match[]
   {
     let m, pos = 0;
     let am: Match[] = [];
@@ -380,7 +382,7 @@ export class OnigScanner
    * @param string The string to test against.
    * @return True if there is at least one match, or false otherwise.
    */
-  testSync(string: string): boolean
+  testSync(string: string | OniStr): boolean
   { return this.internalOni._findNextMatchSync(string, 0) === null; }
 
   private internalOni: Internal.OniBin;
