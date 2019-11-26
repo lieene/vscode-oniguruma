@@ -34,6 +34,9 @@ test("oniguruma tree test", () =>
     let deepCharSet2 = new OnigScanner('[a-b[c-e]z]');
     console.log(deepCharSet2.buildMatchTree("abcdefyz[]")!.info(true));//oniguruam supports charset in charset...
 
+    let s =/[s[i]]?/;//Oniguruma is different with all other regex at least all on https://regex101.com/ when dealing with charactor set
+    console.log(s.exec("[")!.join('|'));//here in javascript neasted [s[i]] is not supported and the "s[i" is the charactor set and the last ] is the next char to match
+    //but as followed here neasted [] are all in charset and it ends only when the out most [] ends
     let deepCharSet3 = new OnigScanner('(?<realgroup>(s)[(?:xyz)a-b[(?<fakegroup>)c-e]z])');//test put fake group in charset
     console.log(Tree.Nomalize(deepCharSet3.patterns.first!).info(true));
     console.log(deepCharSet3.buildMatchTree("sxs?")!.info(true));
