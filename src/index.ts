@@ -11,6 +11,7 @@
 import { Tree, Name } from 'poly-tree';
 import * as L from '@lieene/ts-utility';
 import { promisify } from 'util';
+import { classMethod } from '@babel/types';
 
 export interface VscodeLike { env: { appRoot: string }; }
 
@@ -112,9 +113,8 @@ namespace Internal
     '(?<!\\\\)\\(\\?(:|=|!|<=|<!|>|{|~)', //6 none cap
     '(?<!\\\\)\\(\\?(?=\\()', //7 Conditional
     '(?<!\\\\)\\[', //8 Charactor set begin
-    '(?<!\\\\)\\]', //9 Charactor set end
   ];
-  const patternsExt = [...patterns, '(?<!\\\\)#.*']; //10 lineEndComment
+  const patternsExt = [...patterns, '(?<!\\\\)#.*']; //9 lineEndComment
 
   var ops: Internal.OniBin | undefined = undefined;
   function oniPatterScanner(): Internal.OniBin
@@ -125,9 +125,21 @@ namespace Internal
   { return opsx === undefined ? (opsx = new (Internal.GetOni())(patternsExt)) : opsx; }
 
   let oop: Internal.OniBin | undefined = undefined;
+
   //https://regex101.com/r/sASjOR/1
   function oniOption(): Internal.OniBin
   { return oop === undefined ? (oop = new (Internal.GetOni())(['\\?(?:[imWDSPy]|(x))*-?(?:[imWDSPy]|(x))*'])) : oop; }
+
+
+  const inCharSet = ['(?<!\\\\)\\[', '(?<!\\\\)\\]'];
+  var cse: Internal.OniBin | undefined = undefined;
+  function oniInCharSet(): Internal.OniBin
+  { return cse === undefined ? (cse = new (Internal.GetOni())(inCharSet)) : cse; }
+
+  const inCharSetExt = [...inCharSet, '(?<!\\\\)#.*'];
+  var csex: Internal.OniBin | undefined = undefined;
+  function oniInCharSetExt(): Internal.OniBin
+  { return csex === undefined ? (csex = new (Internal.GetOni())(inCharSetExt)) : csex; }
 
   //const
   let indexCapGroup = 0;
@@ -139,20 +151,23 @@ namespace Internal
   let noneCap = 6;
   let ConditionalGroup = 7;
   let CharactorSetBegin = 8;
-  let CharactorSetEnd = 9;
-  let lineEndComment = 10;
+  let lineEndComment = 9;
+
+  let InCSCharactorSetBegin = 0;
+  let InCSCharactorSetEnd = 1;
+  let InCSlineEndComment = 2;
 
   export function parseSource(source: string): Pattern
   {
-    let groupTree: Tree.MorphTreeX<Name, { source: string }> = Tree<Name, { source: string }>({ source: source });
+    let groupTree: Name.NamedTreeMTX<{ readonly source: string }> = Tree("Editable", n => Name(undefined), Name(undefined), { source: source });
     let groupNode = groupTree.root;
     let cap: boolean = true;
     let ext: boolean = false;
     let capStack: Array<boolean> = [];
     let extStack: Array<boolean> = [];
     let position = 0;
+    let charSetStack: Array<number> = [];
     let match: Match | null = oniPatterScanner()._findNextMatchSync(source, position);
-    let isCharSet: boolean = false;
     while (match !== null)
     {
       let captures = match.captureIndices;
@@ -162,92 +177,98 @@ namespace Internal
       position = fullMatch.end;
       switch (index)
       {
+        case CharactorSetBegin: charSetStack.push(1); break;
         case indexCapGroup:
-          if (!isCharSet)
-          {
-            cap = true;
-            capStack.push(cap);
-            groupNode = groupNode.push(Name(undefined));
-          }
+          cap = true;
+          capStack.push(cap);
+          groupNode = groupNode.push(Name(undefined));
           break;
         case namedCapGroup:
-          if (!isCharSet)
-          {
-            cap = true;
-            capStack.push(cap);
-            groupNode = groupNode.push(Name(source.slice(g1.start, g1.end)));
-          }
+          cap = true;
+          capStack.push(cap);
+          groupNode = groupNode.push(Name(source.slice(g1.start, g1.end)));
           break;
         case groupEnd:
-          if (!isCharSet)
-          {
-            cap = capStack.pop()!;
-            if (cap) { groupNode = groupNode.parent!; }
-          }
+          cap = capStack.pop()!;
+          if (cap) { groupNode = groupNode.parent!; }
           break;
         case optionSwitch:
         case optionGroup:
-          if (!isCharSet)
+          let matchOp = oniOption()._findNextMatchSync(source.slice(fullMatch.start, fullMatch.end), 0);
+          if (matchOp !== null)
           {
-            let matchOp = oniOption()._findNextMatchSync(source.slice(fullMatch.start, fullMatch.end), 0);
-            if (matchOp !== null)
+            let newExt: boolean = ext;
+            if (matchOp.captureIndices[1].length === 1) { newExt = true; }
+            if (matchOp.captureIndices[2].length === 1) { newExt = false; }
+            if (index === optionGroup)
             {
-              let newExt: boolean = ext;
-              if (matchOp.captureIndices[1].length === 1) { newExt = true; }
-              if (matchOp.captureIndices[2].length === 1) { newExt = false; }
-              if (index === optionGroup)
-              {
-                extStack.push(ext);
-                ext = newExt;
-                cap = false;
-                capStack.push(cap);
-              }
-              else { ext = newExt; }//index === optionSwitch
+              extStack.push(ext);
+              ext = newExt;
+              cap = false;
+              capStack.push(cap);
             }
+            else { ext = newExt; }//index === optionSwitch
           }
           break;
-        case noneCap: if (!isCharSet) { cap = false; capStack.push(cap); } break;
-        case CharactorSetBegin: isCharSet = true; break;
-        case CharactorSetEnd: isCharSet = false; break;
-        case ConditionalGroup: if (!isCharSet) { cap = false; capStack.push(cap); } break;
+        case noneCap: cap = false; capStack.push(cap); break;
+        case ConditionalGroup: cap = false; capStack.push(cap); break;
         case commentGroup:
         case lineEndComment: break;
         default: break;
       }
-      if (ext) { match = oniPatterScannerExt()._findNextMatchSync(source, position); }
-      else { match = oniPatterScanner()._findNextMatchSync(source, position); }
+      let pattern: OniBin;
+      if (charSetStack.length > 0)
+      {
+        pattern = ext ? oniInCharSetExt() : oniInCharSet();
+        while (match = pattern._findNextMatchSync(source, position))
+        {
+          position = match.captureIndices[0].end;
+          index = match.index;
+          switch (index)
+          {
+            case InCSCharactorSetBegin: charSetStack.push(1); break;
+            case InCSCharactorSetEnd: charSetStack.pop(); break;
+            case InCSlineEndComment: break;
+            default: break;
+          }
+          if (capStack.length === 0) { break; }
+        }
+      }
+      pattern = ext ? oniPatterScannerExt() : oniPatterScanner();
+      match = pattern._findNextMatchSync(source, position);
     }
     return Tree.Simplify(groupTree);
+    //return groupTree as unknown as Name.NamedTreeMTS<{ readonly source: string }>;
   }
 }
 
-export function $Anchor(string: string): string;
-export function $Anchor(string: OniStr): OniStr;
-export function $Anchor(string: string | OniStr): string | OniStr
-{
-  if (L.IsString(string))
-  { return "$" + string; }
-  else { return OniStr("$" + string.content); }
-}
+// export function $Anchor(string: string): string;
+// export function $Anchor(string: OniStr): OniStr;
+// export function $Anchor(string: string | OniStr): string | OniStr
+// {
+//   if (L.IsString(string))
+//   { return "$" + string; }
+//   else { return OniStr("$" + string.content); }
+// }
 
-export function $OniScaner(...srcs: OnigScanner[]): OnigScanner[];
-export function $OniScaner(...srcs: string[]): OnigScanner;
-export function $OniScaner(...srcs: (string | OnigScanner)[]): OnigScanner | OnigScanner[]
-{
-  if (L.IsArrayOf<string>(srcs, L.IsString))
-  { return new OnigScanner(...srcs.map(s => anchorFix(s))); }
-  else
-  { return (srcs as OnigScanner[]).map(o => new OnigScanner(...o.patterns.map(s => anchorFix(s.source)))); }
-}
+// export function $OniScaner(...srcs: OnigScanner[]): OnigScanner[];
+// export function $OniScaner(...srcs: string[]): OnigScanner;
+// export function $OniScaner(...srcs: (string | OnigScanner)[]): OnigScanner | OnigScanner[]
+// {
+//   if (L.IsArrayOf<string>(srcs, L.IsString))
+//   { return new OnigScanner(...srcs.map(s => anchorFix(s))); }
+//   else
+//   { return (srcs as OnigScanner[]).map(o => new OnigScanner(...o.patterns.map(s => anchorFix(s.source)))); }
+// }
 
-function anchorFix(src: string): string
-{
-  //https://regex101.com/r/U3JYC9/2
-  let charSetOrStartAnchor = /(?<!\\)(?:(\[)|([\^]))|(?<=\\)(?:(A))/g;
-  let charSeEnd = /(?<!\\)(?:])/g;
-  let isCharSet = false;
-  src.replace()
-}
+// function anchorFix(src: string): string
+// {
+//   //https://regex101.com/r/U3JYC9/2
+//   let charSetOrStartAnchor = /(?<!\\)(?:(\[)|([\^]))|(?<=\\)(?:(A))/g;
+//   let charSeEnd = /(?<!\\)(?:])/g;
+//   let isCharSet = false;
+//   src.replace()
+// }
 
 
 export type Callback<T> = (error: Error, match: T) => void;
@@ -294,7 +315,7 @@ export interface Match
   groupInfo: Pattern;
 }
 
-export type Pattern = Tree.MorphTreeS<Name, { readonly source: string }>;
+export type Pattern = Name.NamedTreeMTS<{ readonly source: string }>;
 export type MatchTree = Tree.MorphTreeX<MatchNodeExt, { source: string }>;
 export type MatchNode = Tree.MorphNodeX<MatchNodeExt, { source: string }>;
 
@@ -439,40 +460,92 @@ export class OnigScanner
   testSync(string: string | OniStr): boolean
   { return this.internalOni._findNextMatchSync(string, 0) === null; }
 
-  replace(string: string, count: number | "all", ...replacements: { key: string | number, rep: string }[]): void
+  async replace(string: string, count: number | "all", ...replacements: { key: string | number, rep: string }[]): Promise<string>
   {
-
+    function replaceCallBack(this: OnigScanner, string: string, count: number | "all", replacements: { key: string | number, rep: string }[],
+      callBack: (e: Error, out: string) => void): void
+    {
+      try
+      {
+        let out = this.replaceSync(string, count, ...replacements);
+        callBack(L.Uny, out);
+      }
+      catch (e) { callBack(e, L.Uny); }
+    }
+    return promisify(replaceCallBack.bind(this))(string, count, replacements);
   }
 
-  replaceSync(string: string | OniStr, count: number | "all", ...replacements: { key: string | number, rep: string }[]): void
-  {
 
+  replaceSync(string: string | OniStr, count: number | "all", ...replacements: { key: string | number, rep: string }[]): string
+  {
     let m, pos = 0;
-    let am: Match[] = [];
+    let patternEdits: { key: number, rep: string }[][] = [];//group edits for each pattern
     if (count === "all") { count = -1; }
     else { count = Math.max(1, count) >>> 0; }
-    while (count !== 0 && (m = this.findNextMatchSync(string, pos)))
+    let replaceFound: { start: number, end: number, rep: string }[] = [];
+
+    while (m = this.findNextMatchSync(string, pos))
     {
-      am.push(m); pos = m.captureIndices[0].end;
-      count--;
-    }
-    let edits: { range: L.Range, replace: string }[] = [];
-    am.reduce((e, m) =>
-    {
-      replacements.forEach(r =>
+      let gi = m.groupInfo;// as unknown as Name.NamedTreeMT<{ readonly source: string }>;
+      let gid = m.index;
+      let groupEdits: { key: number, rep: string }[];
+
+      if (patternEdits[gid] === undefined)//build index based replacment
       {
-        if (L.IsNumber(r.key))
+        groupEdits = [];//ordered edits for each selected group
+        let root = gi.root;
+        let rep: { rep: string } | undefined;
+        rep = replacements.find(v => v.key === root.index);//root does not have name
+        if (rep) { groupEdits.push({ key: root.index, rep: rep.rep }); }//full match replaced no child is valid any more
+        else
         {
-          let c = m.captureIndices[r.key];
-          if (c) { e.pushOrdered({ range: new L.Range(c.start, c.length), replace: r.rep }, (l, r) => r.range.start - l.range.start); }
+          root.forDecending((c, p) => { /* no action here*/ },
+            p =>//picker will go to tip child
+            {
+              if (rep = replacements.find(v => v.key === p.index || v.key === p.name))
+              {
+                groupEdits.push({ key: p.index, rep: rep.rep });
+                return "none";
+              }
+              else { return "all"; }
+            });
         }
-      });
-      return e;
-    }, edits);
+        patternEdits[gid] = groupEdits;
+      }
+      else { groupEdits = patternEdits[gid]; }
+      let capIndx = m.captureIndices;
+      pos = capIndx[0].end;
+      for (let i = 0, len = capIndx.length; i < len; i++)
+      {
+        let cap = capIndx[i];
+        if (cap.isMatched)
+        {
+          let edit = groupEdits.find(v => v.key === cap.index);
+          if (edit)
+          {
+            replaceFound.push({ start: cap.start, end: cap.end, rep: edit.rep });
+            count--;
+            if (count === 0) { break; }
+          }
+        }
+      }
+      if (count === 0) { break; }
+    }
+
+    let oldcontent = L.IsString(string) ? string : string.content;
+    let out = '', lastEnd = oldcontent.length;
+    for (let i = replaceFound.length - 1; i >= 0; i--)
+    {
+      let curReplace = replaceFound[i];
+      out = curReplace.rep + (curReplace.end < lastEnd ? oldcontent.slice(curReplace.end, lastEnd) + out : out);
+      lastEnd = curReplace.start;
+    }
+    if (lastEnd > 0) { out = oldcontent.slice(0, lastEnd) + out; }
+    return out;
   }
 
-  private internalOni: Internal.OniBin;
-  private filterMatch(string: string, m: Match | null): Match | null
+  protected internalOni: Internal.OniBin;
+  protected filterMatch(string: string, m: Match | null): Match | null
   {
     if (m !== null)
     {
