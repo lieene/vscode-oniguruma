@@ -41,10 +41,4 @@ test("oniguruma tree test", () =>
     console.log(Tree.Nomalize(deepCharSet3.patterns.first!).info(true));
     console.log(deepCharSet3.buildMatchTree("sxs?")!.info(true));
 
-    //Oni.Test();
-    //console.log((ma.groupInfo as any as Tree.CTree).info(true));
-    //console.log(ma.groupInfo.nodes.join("\r\n"));
-    //ma.groupInfo.nodes.forEach(n=>console.log(n.name));
-    //ma.groupInfo.nodes.forEach(n=>console.log(n.name));
-    //console.log((ma.groupInfo as any as Tree.CTree).info(true));
 });

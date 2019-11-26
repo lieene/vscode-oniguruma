@@ -11,7 +11,6 @@
 import { Tree, Name } from 'poly-tree';
 import * as L from '@lieene/ts-utility';
 import { promisify } from 'util';
-import { classMethod } from '@babel/types';
 
 export interface VscodeLike { env: { appRoot: string }; }
 
@@ -533,15 +532,16 @@ export class OnigScanner
     }
 
     let oldcontent = L.IsString(string) ? string : string.content;
-    let out = '', lastEnd = oldcontent.length;
-    for (let i = replaceFound.length - 1; i >= 0; i--)
+    let out: string[] = [], lastEnd = 0, eof = oldcontent.length;
+    for (let i = 0, repCount = replaceFound.length; i < repCount; i++)
     {
       let curReplace = replaceFound[i];
-      out = curReplace.rep + (curReplace.end < lastEnd ? oldcontent.slice(curReplace.end, lastEnd) + out : out);
-      lastEnd = curReplace.start;
+      if (curReplace.start > lastEnd) { out.push(oldcontent.slice(lastEnd, curReplace.start)); }
+      out.push(curReplace.rep);
+      lastEnd = curReplace.end;
     }
-    if (lastEnd > 0) { out = oldcontent.slice(0, lastEnd) + out; }
-    return out;
+    if (eof > lastEnd) { out.push(oldcontent.slice(lastEnd, eof)); }
+    return out.join('');
   }
 
   protected internalOni: Internal.OniBin;
