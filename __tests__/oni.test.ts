@@ -41,4 +41,8 @@ test("oniguruma tree test", () =>
     console.log(Tree.Nomalize(deepCharSet3.patterns.first!).info(true));
     console.log(deepCharSet3.buildMatchTree("sxs?")!.info(true));
 
+    let testOni1=new OnigScanner('[\\A]s');
+    console.log(testOni1.buildMatchTree('sds_s1s')!.info(true));
+
+
 });
