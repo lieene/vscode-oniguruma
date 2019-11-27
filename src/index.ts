@@ -4,7 +4,7 @@
 // MIT License                                                                     //
 // Copyright (c) 2019 Lieene@ShadeRealm                                            //
 // Created Date: Thu Nov 14 2019                                                   //
-// Last Modified: Tue Nov 26 2019                                                  //
+// Last Modified: Wed Nov 27 2019                                                  //
 // Modified By: Lieene Guo                                                         //
 
 // import '@lieene/ts-utility';
@@ -90,6 +90,7 @@ namespace Internal
     }
     return op === "String" ? binStrCtor : binCtor;
   }
+
   export function IsGroupFound(g0: GroupCapture, gn: GroupCapture): boolean
   {
     if (gn === undefined) { return false; }
@@ -241,35 +242,6 @@ namespace Internal
   }
 }
 
-// export function $Anchor(string: string): string;
-// export function $Anchor(string: OniStr): OniStr;
-// export function $Anchor(string: string | OniStr): string | OniStr
-// {
-//   if (L.IsString(string))
-//   { return "$" + string; }
-//   else { return OniStr("$" + string.content); }
-// }
-
-// export function $OniScaner(...srcs: OnigScanner[]): OnigScanner[];
-// export function $OniScaner(...srcs: string[]): OnigScanner;
-// export function $OniScaner(...srcs: (string | OnigScanner)[]): OnigScanner | OnigScanner[]
-// {
-//   if (L.IsArrayOf<string>(srcs, L.IsString))
-//   { return new OnigScanner(...srcs.map(s => anchorFix(s))); }
-//   else
-//   { return (srcs as OnigScanner[]).map(o => new OnigScanner(...o.patterns.map(s => anchorFix(s.source)))); }
-// }
-
-// function anchorFix(src: string): string
-// {
-//   //https://regex101.com/r/U3JYC9/2
-//   let charSetOrStartAnchor = /(?<!\\)(?:(\[)|([\^]))|(?<=\\)(?:(A))/g;
-//   let charSeEnd = /(?<!\\)(?:])/g;
-//   let isCharSet = false;
-//   src.replace()
-// }
-
-
 export type Callback<T> = (error: Error, match: T) => void;
 
 /**
@@ -391,8 +363,9 @@ export class OnigScanner
     { onMatch(m); pos = m.captureIndices[0].end; }
   }
 
-  forAllMatchSync(string: string, onMatch: (m: Match) => void): void
+  forAllMatchSync(string: string | OniStr, onMatch: (m: Match) => void): void
   {
+    if (L.IsString(string)) { string = OniStr(string); }
     let m, pos = 0;
     while ((m = this.findNextMatchSync(string, pos)))
     { onMatch(m); pos = m.captureIndices[0].end; }
@@ -409,6 +382,7 @@ export class OnigScanner
 
   findAllMatchSync(string: string | OniStr): Match[]
   {
+    if (L.IsString(string)) { string = OniStr(string); }
     let m, pos = 0;
     let am: Match[] = [];
     while ((m = this.findNextMatchSync(string, pos)))
@@ -417,14 +391,16 @@ export class OnigScanner
   }
 
   //BuildMatchTree<T extends object>(builder: (g: Tree.MorphNodeN<Named>, n: Tree.MorphNodeN<T>) => T, ...matches: Match[]): Tree.MorphTreeN<T>;
-  buildMatchTree(string: string): MatchTree | null
+  buildMatchTree(string: string | OniStr): MatchTree | null
   {
+    let oniStr: OniStr;
+    [oniStr, string] = L.IsString(string) ? [OniStr(string), string] : [string, string.content];
     let info = { source: string, toString: () => string };
     let mt: MatchTree = Tree<MatchNodeExt, { source: string }>({ source: string });
     mt.root.poly(info);
     mt.source = string;
     let m, pos = 0;
-    while ((m = this.findNextMatchSync(string, pos)))
+    while ((m = this.findNextMatchSync(oniStr, pos)))
     {
       let gpt: Tree.MorphTreeNX<Name> = this.patterns[m.index] as any;
       let caps = m.captureIndices;
@@ -477,13 +453,15 @@ export class OnigScanner
 
   replaceSync(string: string | OniStr, count: number | "all", ...replacements: { key: string | number, rep: string }[]): string
   {
+    let oniStr: OniStr;
+    [oniStr, string] = L.IsString(string) ? [OniStr(string), string] : [string, string.content];
     let m, pos = 0;
     let patternEdits: { key: number, rep: string }[][] = [];//group edits for each pattern
     if (count === "all") { count = -1; }
     else { count = Math.max(1, count) >>> 0; }
     let replaceFound: { start: number, end: number, rep: string }[] = [];
 
-    while (m = this.findNextMatchSync(string, pos))
+    while (m = this.findNextMatchSync(oniStr, pos))
     {
       let gi = m.groupInfo;// as unknown as Name.NamedTreeMT<{ readonly source: string }>;
       let gid = m.index;
@@ -578,4 +556,85 @@ export interface OniStr
   /** The string primitive wrapped by the object */
   readonly content: string;
   toString(): string;
+}
+
+export class OniRegexSource
+{
+  constructor(pattern: string, compile: boolean = true, parse: boolean = false)
+  {
+    this.pattern = pattern;
+    if (compile) { this.compileRaw(); }
+    if (parse) { this.parse(); }
+  }
+  get source() { return L.IsString(this.pattern) ? this.pattern : this.pattern.source; }
+
+  parse(): Pattern
+  {
+    if (L.IsString(this.pattern))
+    { (this as any).pattern = Internal.parseSource(this.pattern); }
+    return this.pattern as any;
+  }
+
+  compileRaw(): RawOni | undefined
+  {
+    //(this as any).pattern = undefined;
+    (this as any).scaner = undefined;
+    try
+    {
+      (this as any).rawRegex = new (Internal.GetOni())([this.source]);
+      (this as any).isValid = true;
+    }
+    catch (e) 
+    {
+      (this as any).rawRegex = undefined;
+      (this as any).isValid = false;
+    }
+    return this.rawRegex;
+  }
+
+  compileScaner(): OnigScanner | undefined
+  {
+    try
+    {
+      (this as any).scaner = new OnigScanner(this.source);
+      (this as any).rawRegex = (this as any).scaner.internalOni;
+      (this as any).pattern = (this as any).scaner.patterns.first;
+      (this as any).isValid = true;
+    }
+    catch (e) 
+    {
+      (this as any).scaner = undefined;
+      (this as any).rawRegex = undefined;
+      (this as any).pattern = undefined;
+      (this as any).isValid = false;
+    }
+    return this.scaner;
+  }
+
+  readonly pattern: string | Pattern;
+  readonly isValid?: boolean;
+  readonly rawRegex?: RawOni;
+  readonly scaner?: OnigScanner;
+}
+
+interface RawOni
+{ _findNextMatchSync(string: OniStr, startPosition: number): RawMatch | null; }
+
+interface RawMatch
+{
+  /** The index of the best pattern match */
+  index: number;
+  /** An array holding all of the captures (full match + capturing groups) */
+  captureIndices: RawCapture[];
+}
+interface RawCapture
+{
+  /** The index of the capturing group, or 0 for a full-string match */
+  index: number;
+  /** The position in the search string where the capture begins */
+  start: number;
+  /** The position in the search string where the capture ends */
+  end: number;
+  /** The total character length of the capture */
+  length: number;
 }
