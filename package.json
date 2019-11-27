@@ -50,7 +50,7 @@
     "typescript": "^3.7.2"
   },
   "dependencies": {
-    "poly-tree": "^1.4.11"
+    "poly-tree": "^1.4.12"
   },
   "files": [
     "out/**/*"
