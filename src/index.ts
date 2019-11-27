@@ -11,6 +11,7 @@
 import { Tree, Name } from 'poly-tree';
 import * as L from '@lieene/ts-utility';
 import { promisify } from 'util';
+import { type } from 'os';
 
 export interface VscodeLike { env: { appRoot: string }; }
 
@@ -566,7 +567,15 @@ export class OniRegexSource
     if (compile) { this.compileRaw(); }
     if (parse) { this.parse(); }
   }
-  get source() { return L.IsString(this.pattern) ? this.pattern : this.pattern.source; }
+
+  get source(): string { return L.IsString(this.pattern) ? this.pattern : this.pattern.source; }
+  set source(source: string)
+  {
+    (this as any).pattern = source;
+    (this as any).scaner = undefined;
+    (this as any).rawRegex = undefined;
+    (this as any).isValid = undefined;
+  }
 
   parse(): Pattern
   {
@@ -605,7 +614,7 @@ export class OniRegexSource
     {
       (this as any).scaner = undefined;
       (this as any).rawRegex = undefined;
-      (this as any).pattern = undefined;
+      (this as any).pattern = this.source;
       (this as any).isValid = false;
     }
     return this.scaner;
