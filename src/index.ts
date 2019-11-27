@@ -571,10 +571,13 @@ export class OniRegexSource
   get source(): string { return L.IsString(this.pattern) ? this.pattern : this.pattern.source; }
   set source(source: string)
   {
-    (this as any).pattern = source;
-    (this as any).scaner = undefined;
-    (this as any).rawRegex = undefined;
-    (this as any).isValid = undefined;
+    if (this.source !== source)
+    {
+      (this as any).pattern = source;
+      (this as any).scaner = undefined;
+      (this as any).rawRegex = undefined;
+      (this as any).isValid = undefined;
+    }
   }
 
   parse(): Pattern
