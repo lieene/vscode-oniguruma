@@ -105,17 +105,44 @@ namespace Internal
   }
 
   const patterns = [
-    '(?<!\\\\)\\((?!\\?)', //0 index capture group begin
-    '(?<!\\\\)\\(\\?<([a-zA-Z_][a-zA-Z0-9_]*)>', //1 named capture group begin
-    '(?<!\\\\)\\)', //2 group end
-    '(?<!\\\\)\\(\\?\\#(?m:.)*?\\)', //3 comment group
-    '(?<!\\\\)\\(\\?[\\-imxWDSPy]+:', //4 option group
-    '(?<!\\\\)\\(\\?[\\-imxWDSPy]+\\)', //5 option switch
-    '(?<!\\\\)\\(\\?(:|=|!|<=|<!|>|{|~)', //6 none cap
-    '(?<!\\\\)\\(\\?(?=\\()', //7 Conditional
-    '(?<!\\\\)\\[', //8 Charactor set begin
+    '\\\\', //                                  0 escape
+    '\\((?!\\?)', //                            1 index capture group begin
+    '\\(\\?<([a-zA-Z_][a-zA-Z0-9_]*)>', //      2 named capture group begin
+    '\\)', //                                   3 group end
+    '\\(\\?\\#(?m:.)*?\\)', //                  4 comment group
+    '\\(\\?[\\-imxWDSPy]+:', //                 5 option group
+    '\\(\\?[\\-imxWDSPy]+\\)', //               6 option switch
+    '\\(\\?(:|=|!|<=|<!|>|{|~)', //             7 none cap
+    '\\(\\?(?=\\()', //                         8 Conditional
+    '\\[', //                                   9 Charactor set begin
   ];
-  const patternsExt = [...patterns, '(?<!\\\\)#.*']; //9 lineEndComment
+  const patternsExt = [...patterns, '#.*']; //  10 lineEndComment
+
+  //const
+  const escape = 0;
+  const indexCapGroup = 1;
+  const namedCapGroup = 2;
+  const groupEnd = 3;
+  const commentGroup = 4;
+  const optionGroup = 5;
+  const optionSwitch = 6;
+  const noneCap = 7;
+  const ConditionalGroup = 8;
+  const charactorSetBegin = 9;
+  const lineEndComment = 10;
+
+
+  const inCharSet =
+    [
+      '\\\\',//                                 0 escape
+      '\\[',//                                  1 InCSCharactorSetBegin
+      '\\]'//                                   2 InCSCharactorSetEnd
+    ];
+
+  const inCharSetExt = [...inCharSet, '#.*'];// 3 InCSlineEndComment
+  const csPush = 1;
+  const csPop = 2;
+  const cslineEndComment = 3;
 
   var ops: Internal.OniBin | undefined = undefined;
   function oniPatterScanner(): Internal.OniBin
@@ -131,32 +158,19 @@ namespace Internal
   function oniOption(): Internal.OniBin
   { return oop || (oop = new (Internal.GetOni())(['\\?(?:[imWDSPy]|(x))*-?(?:[imWDSPy]|(x))*'])); }
 
-
-  const inCharSet = ['(?<!\\\\)\\[', '(?<!\\\\)\\]'];
   var cse: Internal.OniBin | undefined = undefined;
   function oniInCharSet(): Internal.OniBin
   { return cse || (cse = new (Internal.GetOni())(inCharSet)); }
 
-  const inCharSetExt = [...inCharSet, '(?<!\\\\)#.*'];
   var csex: Internal.OniBin | undefined = undefined;
   function oniInCharSetExt(): Internal.OniBin
   { return csex || (csex = new (Internal.GetOni())(inCharSetExt)); }
 
-  //const
-  let indexCapGroup = 0;
-  let namedCapGroup = 1;
-  let groupEnd = 2;
-  let commentGroup = 3;
-  let optionGroup = 4;
-  let optionSwitch = 5;
-  let noneCap = 6;
-  let ConditionalGroup = 7;
-  let CharactorSetBegin = 8;
-  let lineEndComment = 9;
 
-  let InCSCharactorSetBegin = 0;
-  let InCSCharactorSetEnd = 1;
-  let InCSlineEndComment = 2;
+  var esc: Internal.OniBin | undefined = undefined;
+  function oniEscape(): Internal.OniBin
+  { return esc || (esc = new (Internal.GetOni())(['\\\\'])); }
+
 
   export function parseSource(source: string): Pattern
   {
@@ -178,7 +192,8 @@ namespace Internal
       position = fullMatch.end;
       switch (index)
       {
-        case CharactorSetBegin: charSetStack.push(1); break;
+        case escape: position++; break;
+        case charactorSetBegin: charSetStack.push(1); break;
         case indexCapGroup:
           cap = true;
           capStack.push(cap);
@@ -227,12 +242,13 @@ namespace Internal
           index = match.index;
           switch (index)
           {
-            case InCSCharactorSetBegin: charSetStack.push(1); break;
-            case InCSCharactorSetEnd: charSetStack.pop(); break;
-            case InCSlineEndComment: break;
+            case escape: position++; break;
+            case csPush: charSetStack.push(1); break;
+            case csPop: charSetStack.pop(); break;
+            case cslineEndComment: break;
             default: break;
           }
-          if (capStack.length === 0) { break; }
+          if (charSetStack.length === 0) { break; }
         }
       }
       pattern = ext ? oniPatterScannerExt() : oniPatterScanner();
