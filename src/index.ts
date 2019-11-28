@@ -582,6 +582,7 @@ export class OniRegexSource
   }
 
   get source(): string { return L.IsString(this.pattern) ? this.pattern : this.pattern.source; }
+  toString(): string { return L.IsString(this.pattern) ? this.pattern : this.pattern.source; }
   set source(source: string)
   {
     if (this.source !== source)
