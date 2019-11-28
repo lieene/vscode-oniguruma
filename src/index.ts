@@ -4,7 +4,7 @@
 // MIT License                                                                     //
 // Copyright (c) 2019 Lieene@ShadeRealm                                            //
 // Created Date: Thu Nov 14 2019                                                   //
-// Last Modified: Wed Nov 27 2019                                                  //
+// Last Modified: Thu Nov 28 2019                                                  //
 // Modified By: Lieene Guo                                                         //
 
 // import '@lieene/ts-utility';
@@ -119,28 +119,28 @@ namespace Internal
 
   var ops: Internal.OniBin | undefined = undefined;
   function oniPatterScanner(): Internal.OniBin
-  { return ops === undefined ? (ops = new (Internal.GetOni())(patterns)) : ops; }
+  { return ops || (ops = new (Internal.GetOni())(patterns)); }
 
   let opsx: Internal.OniBin | undefined = undefined;
   function oniPatterScannerExt(): Internal.OniBin
-  { return opsx === undefined ? (opsx = new (Internal.GetOni())(patternsExt)) : opsx; }
+  { return opsx || (opsx = new (Internal.GetOni())(patternsExt)); }
 
   let oop: Internal.OniBin | undefined = undefined;
 
   //https://regex101.com/r/sASjOR/1
   function oniOption(): Internal.OniBin
-  { return oop === undefined ? (oop = new (Internal.GetOni())(['\\?(?:[imWDSPy]|(x))*-?(?:[imWDSPy]|(x))*'])) : oop; }
+  { return oop || (oop = new (Internal.GetOni())(['\\?(?:[imWDSPy]|(x))*-?(?:[imWDSPy]|(x))*'])); }
 
 
   const inCharSet = ['(?<!\\\\)\\[', '(?<!\\\\)\\]'];
   var cse: Internal.OniBin | undefined = undefined;
   function oniInCharSet(): Internal.OniBin
-  { return cse === undefined ? (cse = new (Internal.GetOni())(inCharSet)) : cse; }
+  { return cse || (cse = new (Internal.GetOni())(inCharSet)); }
 
   const inCharSetExt = [...inCharSet, '(?<!\\\\)#.*'];
   var csex: Internal.OniBin | undefined = undefined;
   function oniInCharSetExt(): Internal.OniBin
-  { return csex === undefined ? (csex = new (Internal.GetOni())(inCharSetExt)) : csex; }
+  { return csex || (csex = new (Internal.GetOni())(inCharSetExt)); }
 
   //const
   let indexCapGroup = 0;
@@ -303,7 +303,7 @@ function LogMatchString(this: MatchNode): string
 {
   let slice = this.tree.source.slice(this.range.start, this.range.end);
   let rgs = this.range.toString();
-  return `${this.name === undefined ? '' : this.name + '|'}${rgs}:${slice}`;
+  return `${this.name && this.name + '|' || ''}${rgs}:${slice}`;
 }
 
 /**
