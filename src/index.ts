@@ -285,6 +285,18 @@ export interface Match
 
   /**tree of groups of this scanner*/
   groupInfo: Pattern;
+
+  /** The position in the search string where the match begins */
+  start: number;
+
+  /** The position in the search string where the match ends */
+  end: number;
+
+  /** The total character length of the match */
+  length: number;
+
+  /** The full match string */
+  match: string;
 }
 
 export type Pattern = Name.NamedTreeMTS<{ readonly source: string }>;
@@ -537,6 +549,7 @@ export class OnigScanner
         gn.isMatched = Internal.IsGroupFound(g0, gn);
         gn.match = string.slice(gn.start, gn.end);
       });
+      [m.start, m.end, m.length, m.match] = [g0.start, g0.end, g0.length, g0.match];
     }
     return m;
   }
@@ -629,17 +642,17 @@ export class OniRegexSource
   readonly scaner?: OnigScanner;
 }
 
-interface RawOni
-{ _findNextMatchSync(string: OniStr, startPosition: number): RawMatch | null; }
+export function RawOni(...patterns: string[]): RawOni { return new (Internal.GetOni())(patterns); }
+export interface RawOni { _findNextMatchSync(string: string | OniStr, startPosition: number): RawMatch | null; }
 
-interface RawMatch
+export interface RawMatch
 {
   /** The index of the best pattern match */
   index: number;
   /** An array holding all of the captures (full match + capturing groups) */
   captureIndices: RawCapture[];
 }
-interface RawCapture
+export interface RawCapture
 {
   /** The index of the capturing group, or 0 for a full-string match */
   index: number;

@@ -1,4 +1,4 @@
-import { OnigScanner as Scaner, OniStr as Str, OniRegexSource as Src } from "../src";
+import { OnigScanner as Scaner, OniStr as Str, OniRegexSource as Src, RawOni as Raw, OniStr } from "../src";
 import { Tree } from "poly-tree";
 
 const text = 'some function with T1 T2 and (T3) can return value v1 v2 and v3.\r\nbut not with some other function and so.';
@@ -24,6 +24,18 @@ test("oniguruma test", () =>
 
     let testOni2 = new Scaner('\\101');
     console.log(testOni2.buildMatchTree('A')!.info(true));
+
+    let rawo = Raw("x");
+    expect(rawo._findNextMatchSync("abcxcba", 0)!.captureIndices[0].start).toBe(3);
+    expect(rawo._findNextMatchSync(OniStr("abcxcba"), 0)!.captureIndices[0].start).toBe(3);
+
+    let so = new Scaner("x");
+    expect(so.findNextMatchSync("abcxcba", 0)!.start).toBe(3);
+    let m=so.findNextMatchSync(OniStr("abcxcba"), 0)!;
+    expect(m.start).toBe(3);
+    expect(m.end).toBe(4);
+    expect(m.length).toBe(1);
+    expect(m.match).toBe('x');
 });
 
 test("OnigScanner test", () =>
@@ -52,7 +64,8 @@ test("OnigScanner test", () =>
     { console.log(s); });
 });
 
-test("OniRegexSource test", () =>{
+test("OniRegexSource test", () =>
+{
 
     let pattern = new Src("sss", false, false);
     pattern.parse();
